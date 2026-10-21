@@ -1,0 +1,375 @@
+
+<div class="app-shell">
+  <header class="topbar">
+    <div class="brand">
+      <div class="brand-icon">IT</div>
+      <div>
+        <h1>Inventario tecnológico</h1>
+        <p>Administración de activos institucionales</p>
+      </div>
+    </div>
+
+    <div class="user-info">
+      <span class="user-avatar">{{ esAdmin ? 'A' : 'U' }}</span>
+
+      <div>
+        <strong>{{ esAdmin ? 'Administrador' : 'Usuario' }}</strong>
+        <small>Perfil {{ esAdmin ? 'ADMIN' : 'USER' }}</small>
+      </div>
+
+      <button
+        type="button"
+        class="btn-secondary"
+        (click)="cambiarPerfil()">
+        {{ sesionActiva ? 'Cambiar perfil' : 'Ingresar token' }}
+      </button>
+
+      @if (sesionActiva) {
+        <button
+          type="button"
+          class="btn-secondary"
+          (click)="cerrarSesion()">
+          Cerrar sesión
+        </button>
+      }
+    </div>
+  </header>
+
+  <main class="dashboard">
+    <section class="welcome">
+      <div>
+        <span class="eyebrow">PANEL DE CONTROL</span>
+        <h2>Inventario de activos</h2>
+        <p>Consulta y administra los recursos tecnológicos de la institución.</p>
+
+        @if (!sesionActiva) {
+          <p class="auth-message">
+            Ingresa un JWT de USER para consultar y exportar, o de ADMIN
+            para administrar el inventario.
+          </p>
+        }
+      </div>
+    </section>
+
+    <section class="stats-grid">
+      <article class="stat-card total">
+        <div class="stat-heading">
+          <span>Total de activos</span>
+          <span class="stat-icon">▦</span>
+        </div>
+        <strong>{{ activos.length }}</strong>
+        <small>Registros de inventario</small>
+      </article>
+
+      <article class="stat-card disponible">
+        <div class="stat-heading">
+          <span>Disponibles</span>
+          <span class="stat-icon">✓</span>
+        </div>
+        <strong>{{ contarEstado('DISPONIBLE') }}</strong>
+        <small>Listos para asignación</small>
+      </article>
+
+      <article class="stat-card asignado">
+        <div class="stat-heading">
+          <span>Asignados</span>
+          <span class="stat-icon">↗</span>
+        </div>
+        <strong>{{ contarEstado('ASIGNADO') }}</strong>
+        <small>En uso institucional</small>
+      </article>
+
+      <article class="stat-card mantenimiento">
+        <div class="stat-heading">
+          <span>En mantenimiento</span>
+          <span class="stat-icon">⚙</span>
+        </div>
+        <strong>{{ contarEstado('EN_MANTENIMIENTO') }}</strong>
+        <small>En revisión técnica</small>
+      </article>
+
+      <article class="stat-card baja">
+        <div class="stat-heading">
+          <span>Baja</span>
+          <span class="stat-icon">!</span>
+        </div>
+        <strong>{{ contarEstado('BAJA') }}</strong>
+        <small>Fuera de operación</small>
+      </article>
+    </section>
+
+    <section class="panel">
+      <div class="panel-heading">
+        <div>
+          <h3>Consulta de inventario</h3>
+          <p>Busca y filtra los activos registrados.</p>
+
+          @if (esAdmin && sesionActiva) {
+            <button
+              type="button"
+              class="btn-primary register-button"
+              (click)="nuevoActivo()">
+              + Registrar activo
+            </button>
+          }
+        </div>
+
+        <button
+          type="button"
+          class="btn-secondary"
+          (click)="exportarReporte()"
+          [disabled]="exportando || !sesionActiva">
+          {{ exportando ? 'Generando reporte...' : '↓ Exportar reporte ZIP' }}
+        </button>
+      </div>
+
+      <div class="filters">
+        <label>
+          Número de serie
+          <input
+            type="text"
+            placeholder="Buscar serie..."
+            [(ngModel)]="filtroSerie"
+            (keyup.enter)="buscar()" />
+        </label>
+
+        <label>
+          Marca o modelo
+          <input
+            type="text"
+            placeholder="Buscar equipo..."
+            [(ngModel)]="filtroMarca"
+            (keyup.enter)="buscar()" />
+        </label>
+
+        <label>
+          Estado
+          <select [(ngModel)]="filtroEstado">
+            <option value="">Todos los estados</option>
+            <option value="DISPONIBLE">Disponible</option>
+            <option value="ASIGNADO">Asignado</option>
+            <option value="EN_MANTENIMIENTO">En mantenimiento</option>
+            <option value="BAJA">Baja</option>
+          </select>
+        </label>
+
+        <button
+          type="button"
+          class="btn-search"
+          (click)="buscar()">
+          Buscar
+        </button>
+
+        <button
+          type="button"
+          class="btn-clear"
+          (click)="limpiarFiltros()">
+          Limpiar
+        </button>
+      </div>
+
+      <div class="table-wrapper">
+        <table>
+          <thead>
+            <tr>
+              <th>Folio de inventario</th>
+              <th>Número de serie</th>
+              <th>Marca / Modelo</th>
+              <th>Categoría</th>
+              <th>Estado</th>
+              <th>Costo</th>
+              <th>Acciones</th>
+            </tr>
+          </thead>
+
+          <tbody>
+            @for (activo of activosFiltrados; track activo.id) {
+              <tr>
+                <td>
+                  <strong class="folio">{{ activo.folio }}</strong>
+                </td>
+
+                <td>{{ activo.serie }}</td>
+                <td>{{ activo.marca }}</td>
+
+                <td>
+                  <span class="category-tag">{{ activo.categoria }}</span>
+                </td>
+
+                <td>
+                  <span
+                    class="status"
+                    [ngClass]="claseEstado(activo.estado)">
+                    {{ textoEstado(activo.estado) }}
+                  </span>
+                </td>
+
+                <td>
+                  {{ activo.costo | currency:'MXN':'symbol':'1.2-2' }}
+                </td>
+
+                <td class="acciones-cell">
+                  @if (esAdmin && sesionActiva) {
+                    @if (activo.estado.toUpperCase() !== 'BAJA') {
+                      <button
+                        type="button"
+                        class="action-btn"
+                        (click)="editarActivo(activo.id)">
+                        Editar
+                      </button>
+
+                      <select
+                        class="estado-select"
+                        [value]="activo.estado"
+                        aria-label="Cambiar estado del activo"
+                        (change)="cambiarEstado(activo, $any($event.target).value)">
+                        <option value="DISPONIBLE">Disponible</option>
+                        <option value="ASIGNADO">Asignado</option>
+                        <option value="EN_MANTENIMIENTO">En mantenimiento</option>
+                        <option value="BAJA">Baja</option>
+                      </select>
+                    } @else {
+                      <span class="baja-label">Activo en baja</span>
+                    }
+                  } @else {
+                    <span>Solo consulta</span>
+                  }
+                </td>
+              </tr>
+            } @empty {
+              <tr>
+                <td colspan="7" class="empty-state">
+                  @if (!sesionActiva) {
+                    Ingresa un token válido para cargar el inventario.
+                  } @else {
+                    No hay activos que coincidan con la búsqueda.
+                  }
+                </td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      </div>
+
+      <div class="table-footer">
+        <span>{{ activosFiltrados.length }} registros encontrados</span>
+        <span class="pagination-label">Inventario institucional</span>
+      </div>
+    </section>
+
+    <footer class="footer">
+      Sistema de Inventario Tecnológico · Backend Spring Boot · Frontend Angular
+    </footer>
+  </main>
+
+  @if (mostrarFormulario && esAdmin && sesionActiva) {
+    <div class="modal-overlay">
+      <section
+        class="modal-card"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="modal-title">
+
+        <div class="modal-heading">
+          <div>
+            <span class="eyebrow">
+              {{ esEdicion ? 'ACTUALIZACIÓN' : 'NUEVO REGISTRO' }}
+            </span>
+
+            <h3 id="modal-title">
+              {{ esEdicion ? 'Editar activo' : 'Registrar nuevo activo' }}
+            </h3>
+
+            <p>Captura los datos del recurso tecnológico.</p>
+          </div>
+
+          <button
+            type="button"
+            class="modal-close"
+            aria-label="Cerrar formulario"
+            (click)="cancelarRegistro()"
+            [disabled]="guardando">
+            ×
+          </button>
+        </div>
+
+        <form
+          class="formulario-grid"
+          #formActivo="ngForm"
+          (ngSubmit)="guardarFormulario()">
+
+          <label>
+            Número de serie
+            <input
+              type="text"
+              name="numeroSerie"
+              [(ngModel)]="nuevo.numeroSerie"
+              maxlength="100"
+              placeholder="Ej. DELL-2026-010"
+              required />
+          </label>
+
+          <label>
+            Marca / Modelo
+            <input
+              type="text"
+              name="marcaModelo"
+              [(ngModel)]="nuevo.marcaModelo"
+              maxlength="150"
+              placeholder="Ej. Dell Latitude 5450"
+              required />
+          </label>
+
+          <label>
+            Categoría
+            <select
+              name="categoriaId"
+              [(ngModel)]="nuevo.categoriaId"
+              required>
+              <option [ngValue]="null">Selecciona una categoría</option>
+
+              @for (categoria of categorias; track categoria.id) {
+                <option [ngValue]="categoria.id">
+                  {{ categoria.nombre }}
+                </option>
+              }
+            </select>
+          </label>
+
+          <label>
+            Costo de adquisición (MXN)
+            <input
+              type="number"
+              name="costoAdquisicion"
+              [(ngModel)]="nuevo.costoAdquisicion"
+              min="0.01"
+              step="0.01"
+              placeholder="18500"
+              required />
+          </label>
+
+          <div class="formulario-acciones">
+            <button
+              type="submit"
+              class="btn-primary"
+              [disabled]="guardando || formActivo.invalid">
+              {{
+                guardando
+                  ? 'Guardando...'
+                  : (esEdicion ? 'Actualizar activo' : 'Guardar activo')
+              }}
+            </button>
+
+            <button
+              type="button"
+              class="btn-secondary"
+              (click)="cancelarRegistro()"
+              [disabled]="guardando">
+              Cancelar
+            </button>
+          </div>
+        </form>
+      </section>
+    </div>
+  }
+</div>
