@@ -1,0 +1,45 @@
+
+# Variables de entorno y secretos
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*.p12
+*.jks
+
+# Java / Spring Boot / Maven
+**/target/
+*.class
+*.jar
+*.war
+
+# Configuraciones locales con credenciales
+**/application-local.properties
+**/application-dev.properties
+
+# Angular / Node.js
+**/node_modules/
+**/dist/
+**/.angular/
+**/coverage/
+
+# IDE
+.idea/
+.vscode/
+*.iml
+.settings/
+.project
+.classpath
+
+# Sistema operativo
+.DS_Store
+Thumbs.db
+Desktop.ini
+
+# Logs
+*.log
+
+# Archivos temporales
+*.tmp
+*.bak
